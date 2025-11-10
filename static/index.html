@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyAI - Interactive Learning Platform</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+    <!-- ...existing HTML content... -->
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-brain"></i> StudyAI</h1>
+            <p>Transform your course materials into interactive learning experiences</p>
+        </div>
+
+        <div class="main-content">
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('upload')">
+                    <i class="fas fa-upload"></i> Upload Materials
+                </div>
+                <div class="tab" onclick="switchTab('flashcards')">
+                    <i class="fas fa-clone"></i> Flashcards
+                </div>
+                <div class="tab" onclick="switchTab('activities')">
+                    <i class="fas fa-gamepad"></i> Activities
+                </div>
+                <div class="tab" onclick="switchTab('progress')">
+                    <i class="fas fa-chart-line"></i> Progress
+                </div>
+            </div>
+
+            <!-- Upload Tab -->
+            <div id="upload-tab" class="tab-content active">
+                <div class="upload-section" id="uploadSection">
+                    <div class="upload-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <div class="upload-text">
+                        Drag and drop your course materials here, or click to browse
+                    </div>
+                    <input type="file" id="fileInput" class="file-input" accept=".pdf,.docx,.txt,.pptx" multiple>
+                    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                        <i class="fas fa-file-upload"></i> Choose Files
+                    </button>
+                    <button class="upload-btn" onclick="toggleTextInput()">
+                        <i class="fas fa-keyboard"></i> Type Text
+                    </button>
+                </div>
+
+                <div id="textInputSection" style="display: none;">
+                    <textarea id="courseText" class="text-input" placeholder="Paste your course materials here..."></textarea>
+                    <button class="generate-btn" onclick="generateFromText()">
+                        <i class="fas fa-magic"></i> Generate Study Materials
+                    </button>
+                </div>
+
+                <div id="uploadedFiles" style="display: none;">
+                    <h3>Uploaded Files:</h3>
+                    <div id="fileList"></div>
+                    <button class="generate-btn" onclick="generateFromFiles()">
+                        <i class="fas fa-magic"></i> Generate Study Materials
+                    </button>
+                </div>
+            </div>
+
+            <!-- Flashcards Tab -->
+            <div id="flashcards-tab" class="tab-content">
+                <div id="flashcardsLoading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>AI is generating your flashcards...</p>
+                </div>
+                
+                <div id="flashcardsEmpty" class="empty-state">
+                    <i class="fas fa-clone"></i>
+                    <h3>No flashcards yet</h3>
+                    <p>Upload your course materials to generate interactive flashcards</p>
+                </div>
+
+                <div id="flashcardsContainer" class="flashcard-container"></div>
+            </div>
+
+            <!-- Activities Tab -->
+            <div id="activities-tab" class="tab-content">
+                <div id="activitiesLoading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>AI is creating interactive activities...</p>
+                </div>
+
+                <div id="activitiesEmpty" class="empty-state">
+                    <i class="fas fa-gamepad"></i>
+                    <h3>No activities yet</h3>
+                    <p>Upload your course materials to generate quizzes and study activities</p>
+                </div>
+
+                <div id="activitiesContainer" class="activity-container"></div>
+            </div>
+
+            <!-- Progress Tab -->
+            <div id="progress-tab" class="tab-content">
+                <h2>Your Study Progress</h2>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="overallProgress" style="width: 0%"></div>
+                </div>
+
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="flashcardsStudied">0</div>
+                        <div class="stat-label">Flashcards Studied</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="quizzesCompleted">0</div>
+                        <div class="stat-label">Quizzes Completed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="accuracyRate">0%</div>
+                        <div class="stat-label">Accuracy Rate</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="studyTime">0</div>
+                        <div class="stat-label">Minutes Studied</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
