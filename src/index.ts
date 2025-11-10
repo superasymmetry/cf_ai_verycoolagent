@@ -15,17 +15,35 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 export interface Env {
-  // If you set another name in the Wrangler config file as the value for 'binding',
-  // replace "AI" with the variable name you defined.
   AI: Ai;
+  ASSETS: Fetcher;
 }
 
 export default {
   async fetch(request, env): Promise<Response> {
-    const response = await env.AI.run("@cf/meta/llama-3.1-8b-instruct" as keyof AiModels, {
-      prompt: "What is the origin of the phrase Hello, World",
-    });
+    const url = new URL(request.url);
 
-    return new Response(JSON.stringify(response));
+    // default response when no route matches
+    let worker_response;
+
+    if (url.pathname === "/api/generate-flashcards") {
+      // Read form data from the incoming request (Request.formData()), not from the Fetcher Response
+      const formData = await request.formData();
+      const text = formData.get("textContent");
+      const file = formData.get("file");
+      console.log("Received text for flashcard generation:", text);
+      worker_response = await env.AI.run("@cf/meta/llama-3.1-8b-instruct" as keyof AiModels, {
+        prompt: `Create exactly 5 flashcards from this topic: ${text}
+        Return ONLY a valid JSON array in this exact format:
+        [{"question": "What is...", "answer": "..."}]
+        Do not include any other text, explanations, or formatting. Just the JSON array.`,
+      });
+      console.log("AI worker response:", worker_response);
+
+      const obj = JSON.parse(worker_response.response);
+      console.log("Generated flashcards:", obj);
+    }
+
+    return new Response(JSON.stringify(worker_response));
   },
 } satisfies ExportedHandler<Env>;
