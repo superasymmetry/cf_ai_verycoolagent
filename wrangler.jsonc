@@ -4,6 +4,9 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
+	"ai": {
+		"binding": "AI"
+	},
 	"name": "agent-app",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-11-09",
