@@ -7,7 +7,7 @@
 	"ai": {
 		"binding": "AI"
 	},
-	"name": "agent-app",
+	"name": "verycoolagent",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-11-09",
 	"observability": {
