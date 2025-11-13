@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="styles.css" rel="stylesheet">
 </head>
+
 <body>
     <!-- ...existing HTML content... -->
     <div class="container">
@@ -50,7 +52,8 @@
                 </div>
 
                 <div id="textInputSection" style="display: none;">
-                    <textarea id="courseText" class="text-input" placeholder="Paste your course materials here..."></textarea>
+                    <textarea id="courseText" class="text-input"
+                        placeholder="Paste your course materials here..."></textarea>
                     <button class="generate-btn" onclick="generateFromText()">
                         <i class="fas fa-magic"></i> Generate Study Materials
                     </button>
@@ -71,7 +74,7 @@
                     <div class="spinner"></div>
                     <p>AI is generating your flashcards...</p>
                 </div>
-                
+
                 <div id="flashcardsEmpty" class="empty-state">
                     <i class="fas fa-clone"></i>
                     <h3>No flashcards yet</h3>
@@ -100,7 +103,7 @@
             <!-- Progress Tab -->
             <div id="progress-tab" class="tab-content">
                 <h2>Your Study Progress</h2>
-                
+
                 <div class="progress-bar">
                     <div class="progress-fill" id="overallProgress" style="width: 0%"></div>
                 </div>
@@ -126,7 +129,8 @@
             </div>
         </div>
     </div>
-
+    
     <script src="script.js"></script>
 </body>
+
 </html>

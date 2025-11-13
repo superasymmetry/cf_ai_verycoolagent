@@ -25,21 +25,21 @@ function switchTab(tabName) {
 
 // File upload handling
 function initializeApp() {
-    document.getElementById('fileInput').addEventListener('change', function(e) {
+    document.getElementById('fileInput').addEventListener('change', function (e) {
         handleFiles(e.target.files);
     });
 
     // Drag and drop functionality
     const uploadSection = document.getElementById('uploadSection');
-    uploadSection.addEventListener('dragover', function(e) {
+    uploadSection.addEventListener('dragover', function (e) {
         e.preventDefault();
         uploadSection.classList.add('dragover');
     });
-    uploadSection.addEventListener('dragleave', function(e) {
+    uploadSection.addEventListener('dragleave', function (e) {
         e.preventDefault();
         uploadSection.classList.remove('dragover');
     });
-    uploadSection.addEventListener('drop', function(e) {
+    uploadSection.addEventListener('drop', function (e) {
         e.preventDefault();
         uploadSection.classList.remove('dragover');
         handleFiles(e.dataTransfer.files);
@@ -59,7 +59,7 @@ function initializeApp() {
 function handleFiles(files) {
     const fileList = document.getElementById('fileList');
     const uploadedFiles = document.getElementById('uploadedFiles');
-    
+
     fileList.innerHTML = '';
     Array.from(files).forEach(file => {
         const fileItem = document.createElement('div');
@@ -81,27 +81,29 @@ function toggleTextInput() {
 async function generateFromFiles() {
     const fileInput = document.getElementById('fileInput');
     const files = fileInput.files;
-    
+
     if (!files || files.length === 0) {
         alert('Please select files to upload');
         return;
     }
-    
+
     const formData = new FormData();
     formData.append('file', files[0]);
-    
+
     showLoading();
-    
     try {
         const response = await fetch('/api/generate-flashcards', {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
-        
         if (result.success) {
-            parseAndDisplayFlashcards(result.flashcards);
+            flashcards = result.flashcards.map(card => ({
+                front: card.question || card.front,
+                back: card.answer || card.back
+            }));
+            renderFlashcards();
             switchTab('flashcards');
         } else {
             alert('Error: ' + (result.error || 'Unknown error'));
@@ -115,65 +117,58 @@ async function generateFromFiles() {
 
 async function generateFromText() {
     const text = document.getElementById('courseText').value;
-    
+
     if (!text.trim()) {
         alert('Please enter some course material text');
         return;
     }
-    
+
     showLoading();
-    
+
+    const formData = new FormData();
+    formData.append('textContent', text.trim());
     try {
         const formData = new FormData();
         formData.append('textContent', text.trim());
-        
+
         const response = await fetch('/api/generate-flashcards', {
             method: 'POST',
             body: formData
         });
-        
+
         const result = await response.json();
-        
-        if (result.success) {
-            parseAndDisplayFlashcards(result.flashcards);
+        if (result.success && result.flashcards) {
+            let flashcardsArray;
+            if (Array.isArray(result.flashcards)) {
+                flashcardsArray = result.flashcards;
+            } else if (typeof result.flashcards === 'string') {
+                try {
+                    flashcardsArray = JSON.parse(result.flashcards);
+                } catch (parseError) {
+                    alert('Error: Received invalid flashcard data');
+                    return;
+                }
+            } else {
+                alert('Error: Invalid flashcard data format');
+                return;
+            }
+
+            flashcards = flashcardsArray.map(card => ({
+                front: card.question || card.front || 'No question',
+                back: card.answer || card.back || 'No answer'
+            }));
+
+            renderFlashcards();
             switchTab('flashcards');
         } else {
-            alert('Error: ' + (result.error || 'Unknown error'));
+            alert('Error: ' + (result.error || 'No flashcards generated'));
         }
     } catch (error) {
+        console.error('Full error:', error);
         alert('Failed to generate flashcards: ' + error.message);
     } finally {
         hideLoading();
     }
-}
-
-function parseAndDisplayFlashcards(aiResponse) {
-    try {
-        let flashcardsData;
-        if (typeof aiResponse === 'string') {
-            const jsonMatch = aiResponse.match(/\[[\s\S]*\]/);
-            flashcardsData = jsonMatch ? JSON.parse(jsonMatch[0]) : createFallbackFlashcards();
-        } else if (Array.isArray(aiResponse)) {
-            flashcardsData = aiResponse;
-        } else {
-            flashcardsData = createFallbackFlashcards();
-        }
-        
-        flashcards = flashcardsData.filter(card => card && card.front && card.back);
-        if (flashcards.length === 0) flashcards = createFallbackFlashcards();
-        
-        renderFlashcards();
-    } catch (error) {
-        flashcards = createFallbackFlashcards();
-        renderFlashcards();
-    }
-}
-
-function createFallbackFlashcards() {
-    return [
-        { front: "Your content was processed!", back: "The AI successfully received your content." },
-        { front: "How can I improve results?", back: "Upload structured content like lecture notes for better results." }
-    ];
 }
 
 function showLoading() {
@@ -199,7 +194,7 @@ function renderFlashcards() {
         const flashcardEl = document.createElement('div');
         flashcardEl.className = 'flashcard';
         flashcardEl.onclick = () => flipCard(flashcardEl);
-        
+
         flashcardEl.innerHTML = `
             <div class="flashcard-front">
                 <div>
@@ -214,7 +209,7 @@ function renderFlashcards() {
                 </div>
             </div>
         `;
-        
+
         container.appendChild(flashcardEl);
     });
 }
@@ -230,13 +225,13 @@ function flipCard(cardEl) {
 function updateProgress() {
     document.getElementById('flashcardsStudied').textContent = studyProgress.flashcardsStudied;
     document.getElementById('quizzesCompleted').textContent = studyProgress.quizzesCompleted;
-    
-    const accuracy = studyProgress.totalAnswers > 0 
+
+    const accuracy = studyProgress.totalAnswers > 0
         ? Math.round((studyProgress.correctAnswers / studyProgress.totalAnswers) * 100)
         : 0;
     document.getElementById('accuracyRate').textContent = accuracy + '%';
     document.getElementById('studyTime').textContent = Math.floor(studyProgress.studyTime / 60);
-    
+
     const overallProgress = Math.min(
         ((studyProgress.flashcardsStudied + studyProgress.quizzesCompleted) / 10) * 100,
         100
