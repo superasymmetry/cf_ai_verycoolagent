@@ -24,24 +24,37 @@ export default {
   async fetch(request, env): Promise<Response> {
     const url = new URL(request.url);
 
+    const questionTypes = [
+      "definition",
+      "concept",
+      "application",
+      "comparison",
+      "example",
+      "analysis"
+    ];
+
     if (url.pathname === "/api/generate-flashcards") {
       const formData = await request.formData();
       let text = formData.get("textContent");
+      if (null === text) {
+        text = "";
+      }
       const file = formData.get("file");
       if (file) {
-        const fileText = file.toString();
+        const fileText = file.slice(0, 1800).toString();
         text += "\n" + fileText;
       }
-      const worker_response = await env.AI.run("@cf/meta/llama-3.1-8b-instruct" as keyof AiModels, {
-        messages: [
-          { role: "system", content: "You are a JSON generator that returns EXACTLY the JSON requested." },
-          { role: "user", content: `Create exactly 6 flashcards about: ${text}` }
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            type: "array",
-            items: {
+      let flashcards = [];
+      let activities = [];
+      for (let i = 0; i < 6; i++) {
+        const worker_response = await env.AI.run("@cf/meta/llama-3.1-8b-instruct" as keyof AiModels, {
+          messages: [
+            { role: "system", content: `You are a teacher who is trying to create thought-provoking flashcards which are designed to help students learn and retain information effectively. Create a flashcard based on this question type ${questionTypes[i]}. You are to generate JSON for the flashcards. Return EXACTLY the JSON requested.` },
+            { role: "user", content: `Create exactly 1 flashcard about the following topic: ${text}. You can use the topic given as reference and make up your own flashcards.` }
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
               type: "object",
               properties: {
                 question: { type: "string" },
@@ -49,21 +62,17 @@ export default {
               },
               required: ["question", "answer"]
             }
-          }
-        },
-        temperature: 0
-      });
-
-      const activities_response = await env.AI.run("@cf/meta/llama-3.1-8b-instruct" as keyof AiModels, {
-        messages: [
-          { role: "system", content: "You are a JSON generator that returns EXACTLY the JSON requested." },
-          { role: "user", content: `Create exactly 3 multiple-choice questions about: ${text}` }
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            type: "array",
-            items: {
+          },
+          temperature: 1
+        });
+        const activities_response = await env.AI.run("@cf/meta/llama-3.1-8b-instruct" as keyof AiModels, {
+          messages: [
+            { role: "system", content: `You are a teacher who is trying to create thought-provoking quiz questions which are designed to help students learn and retain information effectively. Create a question based on this question type ${questionTypes[i]}. You are to generate JSON for the quiz questions. Return EXACTLY the JSON requested.` },
+            { role: "user", content: `Create exactly 1 multiple-choice question about the following topic: ${text} You can use the topic given as reference and make up your own questions.` }
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
               type: "object",
               properties: {
                 question: { type: "string" },
@@ -72,43 +81,13 @@ export default {
               },
               required: ["question", "choices", "correct_index"]
             }
-          }
-        },
-        temperature: 0
-      });
-
-      let flashcards;
-      if (Array.isArray(worker_response.response)) {
-        flashcards = worker_response.response;
-      } else {
-        try {
-          flashcards = JSON.parse(String(worker_response.response));
-        } catch (e) {
-          const m = String(worker_response.response).match(/\[[\s\S]*\]/);
-          try {
-            flashcards = m ? JSON.parse(m[0]) : [];
-          } catch (_e) {
-            flashcards = [];
-          }
-        }
+          },
+          temperature: 1
+        });
+        if (worker_response.response && worker_response.response.question && worker_response.response.answer) flashcards.push(worker_response.response);
+        if (activities_response.response && activities_response.response.question && activities_response.response.choices && activities_response.response.correct_index !== undefined) activities.push(activities_response.response);
       }
 
-      let activities;
-      if (Array.isArray(activities_response.response)) {
-        activities = activities_response.response;
-      } else {
-        try {
-          activities = JSON.parse(String(activities_response.response));
-        } catch (e) {
-          const m = String(activities_response.response).match(/\[[\s\S]*\]/);
-          if (m) {
-            try { activities = JSON.parse(m[0]); }
-            catch (e2) { activities = []; }
-          } else {
-            activities = [];
-          }
-        }
-      }
       const res = Response.json({ success: true, flashcards: flashcards, activities: activities });
       return res;
     }

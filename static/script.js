@@ -62,25 +62,20 @@ function toggleTextInput() {
     textInputSection.style.display = textInputSection.style.display === 'none' ? 'block' : 'none';
 }
 
-async function extractFileText(file) {
-    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+async function extractPDFText(file) {
+    if (file.type === 'application/pdf') {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        let text = '';
-        for (let p = 1; p <= pdf.numPages; p++) {
-            const page = await pdf.getPage(p);
-            const content = await page.getTextContent();
-            text += content.items.map(i => i.str).join(' ') + '\n';
+        let fullText = '';
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items.map(item => item.str).join(' ');
+            fullText += pageText + ' ';
         }
-        return text.trim();
+        return fullText.trim();
     }
-
-    if (file.name.toLowerCase().endsWith('.docx')) {
-        const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        return (result && result.value) ? result.value.trim() : '';
-    }
-
     return await file.text();
 }
 
@@ -99,8 +94,8 @@ async function generateFromText() {
         formData.append('textContent', text.trim());
     }
     if (file) {
-        const fileText = await extractFileText(file);
-        formData.append('file', fileText.slice(0, 3000));
+        const fileText = await extractPDFText(file);
+        formData.append('file', fileText);
     }
 
     try {
@@ -136,7 +131,11 @@ async function generateFromText() {
                 switchTab('flashcards');
             } 
             if (result.activities) {
-                activities = result.activities;
+                let newActivities = result.activities;
+                if (!Array.isArray(newActivities) && typeof newActivities === 'string') {
+                    try { newActivities = JSON.parse(newActivities); } catch(e) { newActivities = []; }
+                }
+                activities = Array.isArray(newActivities) ? newActivities : [];
                 renderActivities();
             }
         } else {
