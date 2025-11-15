@@ -24,20 +24,90 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/api/generate-flashcards") {
-      // Read form data from the incoming request (Request.formData()), not from the Fetcher Response
       const formData = await request.formData();
-      const text = formData.get("textContent");
+      let text = formData.get("textContent");
       const file = formData.get("file");
-      console.log("Received text for flashcard generation:", text);
+      if (file) {
+        text += (text ? '\n\n' : '') + await (file as File).text();
+      }
       const worker_response = await env.AI.run("@cf/meta/llama-3.1-8b-instruct" as keyof AiModels, {
-        prompt: `Create exactly 6 flashcards from this topic: ${text}
-Return ONLY valid JSON with proper quotes around property names:
-[{"question": "What is...", "answer": "..."}]
-Do not include any other text. ONLY output valid JSON.`,
+        messages: [
+          { role: "system", content: "You are a JSON generator that returns EXACTLY the JSON requested." },
+          { role: "user", content: `Create exactly 6 flashcards about: ${text}` }
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                question: { type: "string" },
+                answer: { type: "string" }
+              },
+              required: ["question", "answer"]
+            }
+          }
+        },
+        temperature: 0
       });
-      
-      const obj = JSON.parse(worker_response.response);
-      const res = Response.json({success: true, flashcards: obj})
+
+      const activities_response = await env.AI.run("@cf/meta/llama-3.1-8b-instruct" as keyof AiModels, {
+        messages: [
+          { role: "system", content: "You are a JSON generator that returns EXACTLY the JSON requested." },
+          { role: "user", content: `Create exactly 3 multiple-choice questions about: ${text}` }
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                question: { type: "string" },
+                choices: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
+                correct_index: { type: "integer" }
+              },
+              required: ["question", "choices", "correct_index"]
+            }
+          }
+        },
+        temperature: 0
+      });
+
+      let flashcards;
+      if (Array.isArray(worker_response.response)) {
+        flashcards = worker_response.response;
+      } else {
+        try {
+          flashcards = JSON.parse(String(worker_response.response));
+        } catch (e) {
+          const m = String(worker_response.response).match(/\[[\s\S]*\]/);
+          try {
+            flashcards = m ? JSON.parse(m[0]) : [];
+          } catch (_e) {
+            flashcards = [];
+          }
+        }
+      }
+
+      let activities;
+      if (Array.isArray(activities_response.response)) {
+        activities = activities_response.response;
+      } else {
+        try {
+          activities = JSON.parse(String(activities_response.response));
+        } catch (e) {
+          const m = String(activities_response.response).match(/\[[\s\S]*\]/);
+          if (m) {
+            try { activities = JSON.parse(m[0]); }
+            catch (e2) { activities = []; }
+          } else {
+            activities = [];
+          }
+        }
+      }
+      const res = Response.json({ success: true, flashcards: flashcards, activities: activities });
       return res;
     }
 

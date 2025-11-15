@@ -28,9 +28,6 @@
                 <div class="tab" onclick="switchTab('activities')">
                     <i class="fas fa-gamepad"></i> Activities
                 </div>
-                <div class="tab" onclick="switchTab('progress')">
-                    <i class="fas fa-chart-line"></i> Progress
-                </div>
             </div>
 
             <!-- Upload Tab -->
@@ -62,7 +59,7 @@
                 <div id="uploadedFiles" style="display: none;">
                     <h3>Uploaded Files:</h3>
                     <div id="fileList"></div>
-                    <button class="generate-btn" onclick="generateFromFiles()">
+                    <button class="generate-btn" onclick="generateFromText()">
                         <i class="fas fa-magic"></i> Generate Study Materials
                     </button>
                 </div>
@@ -98,34 +95,6 @@
                 </div>
 
                 <div id="activitiesContainer" class="activity-container"></div>
-            </div>
-
-            <!-- Progress Tab -->
-            <div id="progress-tab" class="tab-content">
-                <h2>Your Study Progress</h2>
-
-                <div class="progress-bar">
-                    <div class="progress-fill" id="overallProgress" style="width: 0%"></div>
-                </div>
-
-                <div class="stats">
-                    <div class="stat-card">
-                        <div class="stat-number" id="flashcardsStudied">0</div>
-                        <div class="stat-label">Flashcards Studied</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="quizzesCompleted">0</div>
-                        <div class="stat-label">Quizzes Completed</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="accuracyRate">0%</div>
-                        <div class="stat-label">Accuracy Rate</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="studyTime">0</div>
-                        <div class="stat-label">Minutes Studied</div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>

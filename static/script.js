@@ -1,14 +1,9 @@
+import { PDFParse } from "pdf-parse";
+
 // Global variables
 let currentTab = 'upload';
 let flashcards = [];
 let activities = [];
-let studyProgress = {
-    flashcardsStudied: 0,
-    quizzesCompleted: 0,
-    correctAnswers: 0,
-    totalAnswers: 0,
-    studyTime: 0
-};
 
 // Tab switching
 function switchTab(tabName) {
@@ -45,14 +40,6 @@ function initializeApp() {
         handleFiles(e.dataTransfer.files);
     });
 
-    // Simulate study time tracking
-    setInterval(() => {
-        studyProgress.studyTime += 1;
-        if (currentTab === 'progress') {
-            updateProgress();
-        }
-    }, 1000);
-
     updateProgress();
 }
 
@@ -78,6 +65,28 @@ function toggleTextInput() {
     textInputSection.style.display = textInputSection.style.display === 'none' ? 'block' : 'none';
 }
 
+async function extractFileText(file) {
+    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let text = '';
+        for (let p = 1; p <= pdf.numPages; p++) {
+            const page = await pdf.getPage(p);
+            const content = await page.getTextContent();
+            text += content.items.map(i => i.str).join(' ') + '\n';
+        }
+        return text.trim();
+    }
+
+    if (file.name.toLowerCase().endsWith('.docx')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        return (result && result.value) ? result.value.trim() : '';
+    }
+
+    return await file.text();
+}
+
 async function generateFromFiles() {
     const fileInput = document.getElementById('fileInput');
     const files = fileInput.files;
@@ -88,7 +97,8 @@ async function generateFromFiles() {
     }
 
     const formData = new FormData();
-    formData.append('file', files[0]);
+    const fileText = await extractFileText(files[0]);
+    formData.append('textContent', fileText);
 
     showLoading();
     try {
@@ -117,49 +127,60 @@ async function generateFromFiles() {
 
 async function generateFromText() {
     const text = document.getElementById('courseText').value;
-
-    if (!text.trim()) {
-        alert('Please enter some course material text');
+    const file = document.getElementById('fileInput').files[0];
+    if (!text.trim() && !file) {
+        alert('Please enter some course material text or select a file');
         return;
     }
 
     showLoading();
-
     const formData = new FormData();
-    formData.append('textContent', text.trim());
-    try {
-        const formData = new FormData();
-        formData.append('textContent', text.trim());
 
+    if (text.trim()){
+        formData.append('textContent', text.trim());
+    }
+    if (file) {
+        const fileText = await getHeader('https://bitcoin.org/bitcoin.pdf', true);
+        formData.append('file', fileText);
+    }
+    console.log("Formdata, ", formData);
+
+    try {
         const response = await fetch('/api/generate-flashcards', {
             method: 'POST',
             body: formData
         });
 
         const result = await response.json();
-        if (result.success && result.flashcards) {
-            let flashcardsArray;
-            if (Array.isArray(result.flashcards)) {
-                flashcardsArray = result.flashcards;
-            } else if (typeof result.flashcards === 'string') {
-                try {
-                    flashcardsArray = JSON.parse(result.flashcards);
-                } catch (parseError) {
-                    alert('Error: Received invalid flashcard data');
+        if (result.success) {
+            if (result.flashcards) {
+                let flashcardsArray;
+                if (Array.isArray(result.flashcards)) {
+                    flashcardsArray = result.flashcards;
+                } else if (typeof result.flashcards === 'string') {
+                    try {
+                        flashcardsArray = JSON.parse(result.flashcards);
+                    } catch (parseError) {
+                        alert('Error: Received invalid flashcard data');
+                        return;
+                    }
+                } else {
+                    alert('Error: Invalid flashcard data format');
                     return;
                 }
-            } else {
-                alert('Error: Invalid flashcard data format');
-                return;
+
+                flashcards = flashcardsArray.map(card => ({
+                    front: card.question || card.front || 'No question',
+                    back: card.answer || card.back || 'No answer'
+                }));
+
+                renderFlashcards();
+                switchTab('flashcards');
+            } 
+            if (result.activities) {
+                activities = result.activities;
+                renderActivities();
             }
-
-            flashcards = flashcardsArray.map(card => ({
-                front: card.question || card.front || 'No question',
-                back: card.answer || card.back || 'No answer'
-            }));
-
-            renderFlashcards();
-            switchTab('flashcards');
         } else {
             alert('Error: ' + (result.error || 'No flashcards generated'));
         }
@@ -198,13 +219,11 @@ function renderFlashcards() {
         flashcardEl.innerHTML = `
             <div class="flashcard-front">
                 <div>
-                    <h3>Question ${index + 1}</h3>
                     <p>${card.front}</p>
                 </div>
             </div>
             <div class="flashcard-back">
                 <div>
-                    <h3>Answer</h3>
                     <p>${card.back}</p>
                 </div>
             </div>
@@ -214,29 +233,72 @@ function renderFlashcards() {
     });
 }
 
-function flipCard(cardEl) {
-    cardEl.classList.toggle('flipped');
-    if (cardEl.classList.contains('flipped')) {
-        studyProgress.flashcardsStudied++;
-        updateProgress();
+function renderActivities() {
+    const container = document.getElementById('activitiesContainer');
+    container.innerHTML = '';
+
+    if (!Array.isArray(activities) || activities.length === 0) {
+        document.getElementById('activitiesEmpty').style.display = 'block';
+        return;
     }
+    document.getElementById('activitiesEmpty').style.display = 'none';
+
+    const header = document.createElement('div');
+    header.className = 'activity-header';
+    header.innerHTML = `<h2>Practice Questions</h2><div class="activity-count">${activities.length} questions</div>`;
+    container.appendChild(header);
+
+    activities.forEach((q, qi) => {
+        const card = document.createElement('div');
+        card.className = 'activity-card';
+        const choices = q.choices || q.options || [];
+
+        card.innerHTML = `
+            <div class="activity-q">
+                <div class="q-number">${qi + 1}</div>
+                <div class="q-text">${q.question}</div>
+            </div>
+            <div class="opts-grid">
+                ${choices.map((c, i) => `<button class="opt" data-i="${i}"><span class="opt-letter">${String.fromCharCode(65+i)}</span><span class="opt-text">${c}</span></button>`).join('')}
+            </div>
+            <div class="act-feedback" style="display:none;"></div>
+        `;
+        container.appendChild(card);
+
+        const optButtons = card.querySelectorAll('.opt');
+        optButtons.forEach(btn => btn.addEventListener('click', () => {
+            if (btn.disabled) return;
+            const idx = Number(btn.dataset.i);
+            optButtons.forEach(b => { b.disabled = true; b.classList.remove('selected'); });
+            btn.classList.add('selected');
+
+            const correctIndex = (q.correct_index ?? q.correctIndex ?? q.correct_answer_index ?? (() => {
+                // try to find correct_index by matching text (fallback)
+                const correctVal = q.correct_answer ?? q.correctAnswer;
+                if (typeof correctVal === 'number') return correctVal;
+                if (typeof correctVal === 'string') {
+                    const ci = choices.indexOf(correctVal);
+                    return ci >= 0 ? ci : 0;
+                }
+                return 0;
+            })());
+
+            const isCorrect = idx === correctIndex;
+            const fb = card.querySelector('.act-feedback');
+            fb.style.display = 'block';
+            fb.innerHTML = isCorrect
+                ? `<div class="fb correct">Correct${q.explanation ? ': ' + q.explanation : ''}</div>`
+                : `<div class="fb incorrect">Incorrect — correct: <strong>${String.fromCharCode(65+correctIndex)}. ${choices[correctIndex] || ''}</strong>${q.explanation ? '<div class="exp">'+q.explanation+'</div>' : ''}</div>`;
+
+            btn.classList.add(isCorrect ? 'opt-correct' : 'opt-incorrect');
+            const correctBtn = card.querySelector(`.opt[data-i="${correctIndex}"]`);
+            if (correctBtn) correctBtn.classList.add('opt-correct');
+        }));
+    });
 }
 
-function updateProgress() {
-    document.getElementById('flashcardsStudied').textContent = studyProgress.flashcardsStudied;
-    document.getElementById('quizzesCompleted').textContent = studyProgress.quizzesCompleted;
-
-    const accuracy = studyProgress.totalAnswers > 0
-        ? Math.round((studyProgress.correctAnswers / studyProgress.totalAnswers) * 100)
-        : 0;
-    document.getElementById('accuracyRate').textContent = accuracy + '%';
-    document.getElementById('studyTime').textContent = Math.floor(studyProgress.studyTime / 60);
-
-    const overallProgress = Math.min(
-        ((studyProgress.flashcardsStudied + studyProgress.quizzesCompleted) / 10) * 100,
-        100
-    );
-    document.getElementById('overallProgress').style.width = overallProgress + '%';
+function flipCard(cardEl) {
+    cardEl.classList.toggle('flipped');
 }
 
 // Initialize when DOM is loaded
