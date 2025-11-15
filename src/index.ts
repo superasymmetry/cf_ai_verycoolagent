@@ -18,6 +18,7 @@
 export interface Env {
   AI: Ai;
   ASSETS: Fetcher;
+	
 }
 
 export default {
