@@ -1,11 +1,8 @@
-import { PDFParse } from "pdf-parse";
-
 // Global variables
 let currentTab = 'upload';
 let flashcards = [];
 let activities = [];
 
-// Tab switching
 function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
@@ -87,44 +84,6 @@ async function extractFileText(file) {
     return await file.text();
 }
 
-async function generateFromFiles() {
-    const fileInput = document.getElementById('fileInput');
-    const files = fileInput.files;
-
-    if (!files || files.length === 0) {
-        alert('Please select files to upload');
-        return;
-    }
-
-    const formData = new FormData();
-    const fileText = await extractFileText(files[0]);
-    formData.append('textContent', fileText);
-
-    showLoading();
-    try {
-        const response = await fetch('/api/generate-flashcards', {
-            method: 'POST',
-            body: formData
-        });
-
-        const result = await response.json();
-        if (result.success) {
-            flashcards = result.flashcards.map(card => ({
-                front: card.question || card.front,
-                back: card.answer || card.back
-            }));
-            renderFlashcards();
-            switchTab('flashcards');
-        } else {
-            alert('Error: ' + (result.error || 'Unknown error'));
-        }
-    } catch (error) {
-        alert('Failed to generate flashcards: ' + error.message);
-    } finally {
-        hideLoading();
-    }
-}
-
 async function generateFromText() {
     const text = document.getElementById('courseText').value;
     const file = document.getElementById('fileInput').files[0];
@@ -140,10 +99,9 @@ async function generateFromText() {
         formData.append('textContent', text.trim());
     }
     if (file) {
-        const fileText = await getHeader('https://bitcoin.org/bitcoin.pdf', true);
-        formData.append('file', fileText);
+        const fileText = await extractFileText(file);
+        formData.append('file', fileText.slice(0, 3000));
     }
-    console.log("Formdata, ", formData);
 
     try {
         const response = await fetch('/api/generate-flashcards', {

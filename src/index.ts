@@ -14,6 +14,7 @@
  *
  * Learn more at https://developers.cloudflare.com/workers/
  */
+
 export interface Env {
   AI: Ai;
   ASSETS: Fetcher;
@@ -28,7 +29,8 @@ export default {
       let text = formData.get("textContent");
       const file = formData.get("file");
       if (file) {
-        text += (text ? '\n\n' : '') + await (file as File).text();
+        const fileText = file.toString();
+        text += "\n" + fileText;
       }
       const worker_response = await env.AI.run("@cf/meta/llama-3.1-8b-instruct" as keyof AiModels, {
         messages: [
