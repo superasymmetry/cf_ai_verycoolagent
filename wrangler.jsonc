@@ -17,6 +17,20 @@
 		"directory": "./static",
 		"binding": "ASSETS"
 	},
+	"vectorize": [
+		{
+			"binding": "VECTORIZE",
+			"index_name": "materials",
+			"remote": true
+		}
+	],
+	"workflows": [
+		{
+			"binding": "VECTORIZE_WORKFLOW",
+			"name": "vectorize-workflow",
+			"class_name": "VectorizeWorkflow"
+		}
+	],
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
@@ -49,7 +63,7 @@
 	// "services": [{ "binding": "MY_SERVICE", "service": "my-service" }]
 	"triggers": {
 		"crons": [
-			"* * * * *"
+			"*/30 * * * * *"
 		]
 	}
 }

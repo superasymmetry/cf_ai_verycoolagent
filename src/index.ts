@@ -14,11 +14,14 @@
  *
  * Learn more at https://developers.cloudflare.com/workers/
  */
+import { generateScheduledContent, getLatestContent } from "./generate";
+export { VectorizeWorkflow } from "./vectorize";
 
 export interface Env {
   AI: Ai;
   ASSETS: Fetcher;
-	
+  VECTORIZE: Vectorize;
+  VECTORIZE_WORKFLOW: Workflow;
 }
 
 export default {
@@ -34,6 +37,16 @@ export default {
       "analysis"
     ];
 
+    if (url.pathname === "/api/latest-content") {
+      const content = getLatestContent();
+      return Response.json({
+        success: true,
+        flashcards: content.flashcards,
+        activities: content.activities,
+        lastUpdated: content.timestamp
+      });
+    }
+
     if (url.pathname === "/api/generate-flashcards") {
       const formData = await request.formData();
       let text = formData.get("textContent");
@@ -44,6 +57,13 @@ export default {
       if (file) {
         const fileText = file.slice(0, 1800).toString();
         text += "\n" + fileText;
+      }
+      if (text){
+        await env.VECTORIZE_WORKFLOW.create({
+          params: {
+            text: text
+          }
+        });
       }
       let flashcards = [];
       let activities = [];
@@ -94,5 +114,16 @@ export default {
     }
 
     return env.ASSETS.fetch(request);
+  },
+
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    console.log("Cron triggered - generating flashcards");
+    
+    try {
+      await generateScheduledContent(env, "general knowledge");
+      console.log("Scheduled generation completed successfully");
+    } catch (error) {
+      console.error("Error in scheduled generation:", error);
+    }
   },
 } satisfies ExportedHandler<Env>;
